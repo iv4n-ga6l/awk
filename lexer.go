@@ -1,26 +1,26 @@
 package main
 
 import (
-	"regexp"
-	"strings"
 	"unicode"
 )
 
 type TokenType string
 
 const (
-	TOKEN_PRINT   TokenType = "PRINT"
-	TOKEN_DOLLAR  TokenType = "DOLLAR"
-	TOKEN_NUMBER  TokenType = "NUMBER"
-	TOKEN_LBRACE  TokenType = "LBRACE"
-	TOKEN_RBRACE  TokenType = "RBRACE"
-	TOKEN_STRING  TokenType = "STRING"
-	TOKEN_REGEX   TokenType = "REGEX"
-	TOKEN_BEGIN   TokenType = "BEGIN"
-	TOKEN_END     TokenType = "END"
-	TOKEN_OPERATOR TokenType = "OPERATOR"
-	TOKEN_IDENTIFIER TokenType = "IDENTIFIER"
-	TOKEN_EOF     TokenType = "EOF"
+	TOKEN_PRINT       TokenType = "PRINT"
+	TOKEN_DOLLAR      TokenType = "DOLLAR"
+	TOKEN_NUMBER      TokenType = "NUMBER"
+	TOKEN_LBRACE      TokenType = "LBRACE"
+	TOKEN_RBRACE      TokenType = "RBRACE"
+	TOKEN_STRING      TokenType = "STRING"
+	TOKEN_REGEX       TokenType = "REGEX"
+	TOKEN_BEGIN       TokenType = "BEGIN"
+	TOKEN_END         TokenType = "END"
+	TOKEN_OPERATOR    TokenType = "OPERATOR"
+	TOKEN_IDENTIFIER  TokenType = "IDENTIFIER"
+	TOKEN_ASSIGNMENT  TokenType = "ASSIGNMENT"
+	TOKEN_ARITHMETIC  TokenType = "ARITHMETIC"
+	TOKEN_EOF         TokenType = "EOF"
 )
 
 type Token struct {
@@ -61,8 +61,8 @@ func (l *Lexer) NextToken() Token {
 		return Token{Type: TOKEN_DOLLAR, Value: "$"}
 	case '/':
 		return l.lexRegex()
-	case '=', '!', '<', '>':
-		return l.lexOperator()
+	case '=', '+', '-', '*', '/', '%':
+		return l.lexOperatorOrAssignment()
 	}
 
 	if isAlpha(ch) {
@@ -90,13 +90,15 @@ func (l *Lexer) lexRegex() Token {
 	return Token{Type: TOKEN_EOF}
 }
 
-func (l *Lexer) lexOperator() Token {
+func (l *Lexer) lexOperatorOrAssignment() Token {
 	start := l.pos
+	ch := l.input[l.pos]
 	l.pos++
-	if l.pos < len(l.input) && (l.input[l.pos] == '=' || l.input[l.pos] == '~') {
+	if l.pos < len(l.input) && l.input[l.pos] == '=' {
 		l.pos++
+		return Token{Type: TOKEN_ASSIGNMENT, Value: l.input[start:l.pos]}
 	}
-	return Token{Type: TOKEN_OPERATOR, Value: l.input[start:l.pos]}
+	return Token{Type: TOKEN_ARITHMETIC, Value: string(ch)}
 }
 
 func (l *Lexer) lexIdentifier() Token {

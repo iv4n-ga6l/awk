@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -12,11 +11,13 @@ type Interpreter struct {
 	fields         []string
 	recordNumber   int
 	FieldSeparator string
+	variables      map[string]interface{}
 }
 
 func NewInterpreter(fieldSeparator string) *Interpreter {
 	return &Interpreter{
 		FieldSeparator: fieldSeparator,
+		variables:      make(map[string]interface{}),
 	}
 }
 
@@ -43,7 +44,7 @@ func (i *Interpreter) Execute(action *Action) {
 					output = append(output, i.fields[index-1])
 				}
 			default:
-				output = append(output, arg)
+				output = append(output, fmt.Sprintf("%v", i.GetVariable(arg)))
 			}
 		}
 		fmt.Println(strings.Join(output, " "))
@@ -64,6 +65,33 @@ func (i *Interpreter) ExecuteBegin(actions []*Action) {
 func (i *Interpreter) ExecuteEnd(actions []*Action) {
 	for _, action := range actions {
 		i.Execute(action)
+	}
+}
+
+func (i *Interpreter) GetVariable(name string) interface{} {
+	if value, exists := i.variables[name]; exists {
+		return value
+	}
+	return 0 // Default value for uninitialized variables
+}
+
+func (i *Interpreter) SetVariable(name string, value interface{}) {
+	i.variables[name] = value
+}
+
+func (i *Interpreter) ToNumber(value interface{}) float64 {
+	switch v := value.(type) {
+	case string:
+		if num, err := strconv.ParseFloat(v, 64); err == nil {
+			return num
+		}
+		return 0
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	default:
+		return 0
 	}
 }
 
