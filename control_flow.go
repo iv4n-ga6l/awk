@@ -1,55 +1,35 @@
 package main
 
-import "fmt"
-
 // ControlFlow constructs
 
-type IfStatement struct {
-	Condition Expression
-	TrueBranch []*Action
-	FalseBranch []*Action
-}
-
-type WhileLoop struct {
-	Condition Expression
-	Body []*Action
-}
-
-type ForLoop struct {
-	Init      *AssignmentExpression
-	Condition Expression
-	Post      *AssignmentExpression
+type ForInLoop struct {
+	Variable  string
+	ArrayName string
 	Body      []*Action
 }
 
-type DoWhileLoop struct {
-	Condition Expression
-	Body      []*Action
+type DeleteStatement struct {
+	ArrayName string
+	Key       Expression
 }
 
-// Commands
-
-type BreakCommand struct{}
-
-type ContinueCommand struct{}
-
-type NextCommand struct{}
-
-type ExitCommand struct{
-	ExitCode Expression
-}
-
-// Ternary Conditional Operator
-
-type TernaryExpression struct {
-	Condition     Expression
-	TrueValue     Expression
-	FalseValue    Expression
-}
-
-func (t *TernaryExpression) Evaluate(interpreter *Interpreter) interface{} {
-	if interpreter.ToNumber(t.Condition.Evaluate(interpreter)) != 0 {
-		return t.TrueValue.Evaluate(interpreter)
+func (f *ForInLoop) Execute(interpreter *Interpreter) {
+	array := interpreter.GetArray(f.ArrayName)
+	if array != nil {
+		keys := array.Keys()
+		for _, key := range keys {
+			interpreter.SetVariable(f.Variable, key)
+			for _, act := range f.Body {
+				interpreter.Execute(act)
+			}
+		}
 	}
-	return t.FalseValue.Evaluate(interpreter)
+}
+
+func (d *DeleteStatement) Execute(interpreter *Interpreter) {
+	array := interpreter.GetArray(d.ArrayName)
+	if array != nil {
+		key := d.Key.Evaluate(interpreter).(string)
+		array.Delete(key)
+	}
 }
