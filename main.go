@@ -123,14 +123,3 @@ func main() {
 	// Execute END actions
 	interpreter.ExecuteEnd(programAST.EndActions)
 }
-
-type stringArray []string
-
-func (s *stringArray) String() string {
-	return strings.Join(*s, ",")
-}
-
-func (s *stringArray) Set(value string) error {
-	*s = append(*s, value)
-	return nil
-}
