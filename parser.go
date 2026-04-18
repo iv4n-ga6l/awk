@@ -2,164 +2,57 @@ package main
 
 import "fmt"
 
-func (p *Parser) parseIfStatement() (*IfStatement, error) {
-	ifStmt := &IfStatement{}
+func (p *Parser) parseForInLoop() (*ForInLoop, error) {
+	forInLoop := &ForInLoop{}
 	p.nextToken()
-	condition, err := p.parseExpression()
-	if err != nil {
-		return nil, err
+	if p.token.Type != TOKEN_IDENTIFIER {
+		return nil, fmt.Errorf("expected identifier for loop variable")
 	}
-	ifStmt.Condition = condition
+	forInLoop.Variable = p.token.Value
+	p.nextToken()
+	if p.token.Type != TOKEN_IN {
+		return nil, fmt.Errorf("expected 'in' keyword after loop variable")
+	}
+	p.nextToken()
+	if p.token.Type != TOKEN_IDENTIFIER {
+		return nil, fmt.Errorf("expected array identifier after 'in'")
+	}
+	forInLoop.ArrayName = p.token.Value
 	p.nextToken()
 	if p.token.Type != TOKEN_LBRACE {
-		return nil, fmt.Errorf("expected '{' after if condition")
-	}
-	p.nextToken()
-	trueBranch, err := p.parseActions()
-	if err != nil {
-		return nil, err
-	}
-	ifStmt.TrueBranch = trueBranch
-	p.nextToken()
-	if p.token.Type == TOKEN_ELSE {
-		p.nextToken()
-		if p.token.Type != TOKEN_LBRACE {
-			return nil, fmt.Errorf("expected '{' after else")
-		}
-		p.nextToken()
-		falseBranch, err := p.parseActions()
-		if err != nil {
-			return nil, err
-		}
-		ifStmt.FalseBranch = falseBranch
-		p.nextToken()
-	}
-	return ifStmt, nil
-}
-
-func (p *Parser) parseWhileLoop() (*WhileLoop, error) {
-	whileLoop := &WhileLoop{}
-	p.nextToken()
-	condition, err := p.parseExpression()
-	if err != nil {
-		return nil, err
-	}
-	whileLoop.Condition = condition
-	p.nextToken()
-	if p.token.Type != TOKEN_LBRACE {
-		return nil, fmt.Errorf("expected '{' after while condition")
+		return nil, fmt.Errorf("expected '{' after 'for (key in array)'")
 	}
 	p.nextToken()
 	body, err := p.parseActions()
 	if err != nil {
 		return nil, err
 	}
-	whileLoop.Body = body
+	forInLoop.Body = body
 	p.nextToken()
-	return whileLoop, nil
+	return forInLoop, nil
 }
 
-func (p *Parser) parseForLoop() (*ForLoop, error) {
-	forLoop := &ForLoop{}
+func (p *Parser) parseDeleteStatement() (*DeleteStatement, error) {
+	deleteStmt := &DeleteStatement{}
 	p.nextToken()
-	init, err := p.parseAssignment()
+	if p.token.Type != TOKEN_IDENTIFIER {
+		return nil, fmt.Errorf("expected array identifier after 'delete'")
+	}
+	deleteStmt.ArrayName = p.token.Value
+	p.nextToken()
+	if p.token.Type != TOKEN_LBRACKET {
+		return nil, fmt.Errorf("expected '[' after array identifier")
+	}
+	p.nextToken()
+	key, err := p.parseExpression()
 	if err != nil {
 		return nil, err
 	}
-	forLoop.Init = init
+	deleteStmt.Key = key
 	p.nextToken()
-	condition, err := p.parseExpression()
-	if err != nil {
-		return nil, err
-	}
-	forLoop.Condition = condition
-	p.nextToken()
-	post, err := p.parseAssignment()
-	if err != nil {
-		return nil, err
-	}
-	forLoop.Post = post
-	p.nextToken()
-	if p.token.Type != TOKEN_LBRACE {
-		return nil, fmt.Errorf("expected '{' after for loop header")
+	if p.token.Type != TOKEN_RBRACKET {
+		return nil, fmt.Errorf("expected ']' after array key")
 	}
 	p.nextToken()
-	body, err := p.parseActions()
-	if err != nil {
-		return nil, err
-	}
-	forLoop.Body = body
-	p.nextToken()
-	return forLoop, nil
-}
-
-func (p *Parser) parseDoWhileLoop() (*DoWhileLoop, error) {
-	doWhileLoop := &DoWhileLoop{}
-	p.nextToken()
-	if p.token.Type != TOKEN_LBRACE {
-		return nil, fmt.Errorf("expected '{' after do")
-	}
-	p.nextToken()
-	body, err := p.parseActions()
-	if err != nil {
-		return nil, err
-	}
-	doWhileLoop.Body = body
-	p.nextToken()
-	if p.token.Type != TOKEN_WHILE {
-		return nil, fmt.Errorf("expected 'while' after do-while body")
-	}
-	p.nextToken()
-	condition, err := p.parseExpression()
-	if err != nil {
-		return nil, err
-	}
-	doWhileLoop.Condition = condition
-	p.nextToken()
-	return doWhileLoop, nil
-}
-
-func (p *Parser) parseCommand() (interface{}, error) {
-	switch p.token.Type {
-	case TOKEN_BREAK:
-		p.nextToken()
-		return &BreakCommand{}, nil
-	case TOKEN_CONTINUE:
-		p.nextToken()
-		return &ContinueCommand{}, nil
-	case TOKEN_NEXT:
-		p.nextToken()
-		return &NextCommand{}, nil
-	case TOKEN_EXIT:
-		p.nextToken()
-		var exitCode Expression
-		if p.token.Type != TOKEN_SEMICOLON {
-			exitCode, _ = p.parseExpression()
-		}
-		return &ExitCommand{ExitCode: exitCode}, nil
-	default:
-		return nil, fmt.Errorf("unexpected command token: %s", p.token.Type)
-	}
-}
-
-func (p *Parser) parseTernaryExpression(condition Expression) (*TernaryExpression, error) {
-	p.nextToken()
-	trueValue, err := p.parseExpression()
-	if err != nil {
-		return nil, err
-	}
-	p.nextToken()
-	if p.token.Type != TOKEN_COLON {
-		return nil, fmt.Errorf("expected ':' in ternary expression")
-	}
-	p.nextToken()
-	falseValue, err := p.parseExpression()
-	if err != nil {
-		return nil, err
-	}
-	return &TernaryExpression{
-		Condition:  condition,
-		TrueValue:  trueValue,
-		FalseValue: falseValue,
-	}, nil
+	return deleteStmt, nil
 }
