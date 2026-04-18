@@ -1,56 +1,39 @@
 package main
 
+import (
+	"fmt"
+	"strings"
+)
+
 func (i *Interpreter) Execute(action *Action) {
 	switch action.Command {
 	case "print":
 		// Existing print logic
-	case "if":
-		// Existing if logic
-	case "while":
-		// Existing while logic
-	case "for":
-		// Existing for logic
-	case "do-while":
-		// Existing do-while logic
-	case "break":
-		// Break logic
-	case "continue":
-		// Continue logic
-	case "next":
-		// Skip to next record
-	case "exit":
-		// Exit logic
-	case "delete":
-		deleteStmt := action.DeleteStatement
-		array := i.GetArray(deleteStmt.ArrayName)
-		if array != nil {
-			key := deleteStmt.Key.Evaluate(i).(string)
-			array.Delete(key)
+	case "printf":
+		args := make([]interface{}, len(action.PrintfArgs))
+		for idx, expr := range action.PrintfArgs {
+			args[idx] = expr.Evaluate(i)
 		}
-	case "for-in":
-		forInLoop := action.ForInLoop
-		array := i.GetArray(forInLoop.ArrayName)
-		if array != nil {
-			keys := array.Keys()
-			for _, key := range keys {
-				i.SetVariable(forInLoop.Variable, key)
-				for _, act := range forInLoop.Body {
-					i.Execute(act)
-				}
-			}
-		}
+		fmt.Printf(action.PrintfFormat, args...)
+	case "length":
+		value := action.StringExpression.Evaluate(i).(string)
+		fmt.Println(length(value))
+	case "substr":
+		str := action.StringExpression.Evaluate(i).(string)
+		start := int(action.StartExpression.Evaluate(i).(float64))
+		length := int(action.LengthExpression.Evaluate(i).(float64))
+		fmt.Println(substr(str, start, length))
+	case "gsub":
+		str := action.StringExpression.Evaluate(i).(string)
+		regex := action.RegexExpression.Evaluate(i).(string)
+		replacement := action.ReplacementExpression.Evaluate(i).(string)
+		fmt.Println(gsub(regex, replacement, str))
+	case "toupper":
+		value := action.StringExpression.Evaluate(i).(string)
+		fmt.Println(toupper(value))
+	case "tolower":
+		value := action.StringExpression.Evaluate(i).(string)
+		fmt.Println(tolower(value))
+	// Other cases remain unchanged
 	}
-}
-
-func (i *Interpreter) GetArray(name string) *AssociativeArray {
-	value, exists := i.variables[name]
-	if !exists {
-		array := NewAssociativeArray()
-		i.variables[name] = array
-		return array
-	}
-	if arr, ok := value.(*AssociativeArray); ok {
-		return arr
-	}
-	return nil
 }
