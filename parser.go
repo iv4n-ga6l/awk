@@ -2,57 +2,52 @@ package main
 
 import "fmt"
 
-func (p *Parser) parseForInLoop() (*ForInLoop, error) {
-	forInLoop := &ForInLoop{}
+func (p *Parser) parseFunctionDefinition() (*FunctionDefinition, error) {
+	function := &FunctionDefinition{}
 	p.nextToken()
 	if p.token.Type != TOKEN_IDENTIFIER {
-		return nil, fmt.Errorf("expected identifier for loop variable")
+		return nil, fmt.Errorf("expected function name after 'function'")
 	}
-	forInLoop.Variable = p.token.Value
+	function.Name = p.token.Value
 	p.nextToken()
-	if p.token.Type != TOKEN_IN {
-		return nil, fmt.Errorf("expected 'in' keyword after loop variable")
+	if p.token.Type != TOKEN_LPAREN {
+		return nil, fmt.Errorf("expected '(' after function name")
 	}
 	p.nextToken()
-	if p.token.Type != TOKEN_IDENTIFIER {
-		return nil, fmt.Errorf("expected array identifier after 'in'")
+	for p.token.Type == TOKEN_IDENTIFIER {
+		function.Parameters = append(function.Parameters, p.token.Value)
+		p.nextToken()
+		if p.token.Type == TOKEN_COMMA {
+			p.nextToken()
+		}
 	}
-	forInLoop.ArrayName = p.token.Value
+	if p.token.Type != TOKEN_RPAREN {
+		return nil, fmt.Errorf("expected ')' after function parameters")
+	}
 	p.nextToken()
 	if p.token.Type != TOKEN_LBRACE {
-		return nil, fmt.Errorf("expected '{' after 'for (key in array)'")
+		return nil, fmt.Errorf("expected '{' after function signature")
 	}
 	p.nextToken()
 	body, err := p.parseActions()
 	if err != nil {
 		return nil, err
 	}
-	forInLoop.Body = body
+	function.Body = body
 	p.nextToken()
-	return forInLoop, nil
+	if p.token.Type != TOKEN_RBRACE {
+		return nil, fmt.Errorf("expected '}' after function body")
+	}
+	return function, nil
 }
 
-func (p *Parser) parseDeleteStatement() (*DeleteStatement, error) {
-	deleteStmt := &DeleteStatement{}
+func (p *Parser) parseReturnStatement() (*ReturnStatement, error) {
+	returnStmt := &ReturnStatement{}
 	p.nextToken()
-	if p.token.Type != TOKEN_IDENTIFIER {
-		return nil, fmt.Errorf("expected array identifier after 'delete'")
-	}
-	deleteStmt.ArrayName = p.token.Value
-	p.nextToken()
-	if p.token.Type != TOKEN_LBRACKET {
-		return nil, fmt.Errorf("expected '[' after array identifier")
-	}
-	p.nextToken()
-	key, err := p.parseExpression()
+	expr, err := p.parseExpression()
 	if err != nil {
 		return nil, err
 	}
-	deleteStmt.Key = key
-	p.nextToken()
-	if p.token.Type != TOKEN_RBRACKET {
-		return nil, fmt.Errorf("expected ']' after array key")
-	}
-	p.nextToken()
-	return deleteStmt, nil
+	returnStmt.Expression = expr
+	return returnStmt, nil
 }
