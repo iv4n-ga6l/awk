@@ -2,23 +2,28 @@ package main
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
 type Interpreter struct {
-	line         string
-	fields       []string
-	recordNumber int
-	fieldSeparator string
+	line           string
+	fields         []string
+	recordNumber   int
+	FieldSeparator string
 }
 
-func NewInterpreter(line string, fields []string, recordNumber int, fieldSeparator string) *Interpreter {
+func NewInterpreter(fieldSeparator string) *Interpreter {
 	return &Interpreter{
-		line:         line,
-		fields:       fields,
-		recordNumber: recordNumber,
-		fieldSeparator: fieldSeparator,
+		FieldSeparator: fieldSeparator,
 	}
+}
+
+func (i *Interpreter) SetRecord(line string, fields []string, recordNumber int) {
+	i.line = line
+	i.fields = fields
+	i.recordNumber = recordNumber
 }
 
 func (i *Interpreter) Execute(action *Action) {
@@ -45,8 +50,24 @@ func (i *Interpreter) Execute(action *Action) {
 	}
 }
 
+func (i *Interpreter) EvaluatePattern(pattern Pattern) bool {
+	// Placeholder: Implement pattern evaluation logic
+	return true
+}
+
+func (i *Interpreter) ExecuteBegin(actions []*Action) {
+	for _, action := range actions {
+		i.Execute(action)
+	}
+}
+
+func (i *Interpreter) ExecuteEnd(actions []*Action) {
+	for _, action := range actions {
+		i.Execute(action)
+	}
+}
+
 func parseFieldIndex(field string) int {
-	var index int
-	fmt.Sscanf(field, "%d", &index)
+	index, _ := strconv.Atoi(field)
 	return index
 }
