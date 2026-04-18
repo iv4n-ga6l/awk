@@ -4,24 +4,90 @@ import (
 	"fmt"
 )
 
-type Pattern interface {
-	Evaluate(interpreter *Interpreter) bool
+type Expression interface {
+	Evaluate(interpreter *Interpreter) interface{}
 }
 
-type Action struct {
-	Command string
-	Args    []string
+type VariableExpression struct {
+	Name string
 }
 
-type Rule struct {
-	Pattern Pattern
-	Action  *Action
+func (v *VariableExpression) Evaluate(interpreter *Interpreter) interface{} {
+	return interpreter.GetVariable(v.Name)
 }
 
-type Program struct {
-	BeginActions []*Action
-	Rules        []Rule
-	EndActions   []*Action
+type LiteralExpression struct {
+	Value string
+}
+
+func (l *LiteralExpression) Evaluate(interpreter *Interpreter) interface{} {
+	return l.Value
+}
+
+type BinaryExpression struct {
+	Left     Expression
+	Operator string
+	Right    Expression
+}
+
+func (b *BinaryExpression) Evaluate(interpreter *Interpreter) interface{} {
+	left := interpreter.ToNumber(b.Left.Evaluate(interpreter))
+	right := interpreter.ToNumber(b.Right.Evaluate(interpreter))
+
+	switch b.Operator {
+	case "+":
+		return left + right
+	case "-":
+		return left - right
+	case "*":
+		return left * right
+	case "/":
+		if right == 0 {
+			return 0 // Avoid division by zero
+		}
+		return left / right
+	case "%":
+		return int(left) % int(right)
+	case "^":
+		result := 1.0
+		for i := 0; i < int(right); i++ {
+			result *= left
+		}
+		return result
+	default:
+		return nil
+	}
+}
+
+type AssignmentExpression struct {
+	Variable string
+	Operator string
+	Value    Expression
+}
+
+func (a *AssignmentExpression) Evaluate(interpreter *Interpreter) interface{} {
+	value := a.Value.Evaluate(interpreter)
+	if a.Operator == "=" {
+		interpreter.SetVariable(a.Variable, value)
+	} else {
+		current := interpreter.ToNumber(interpreter.GetVariable(a.Variable))
+		newValue := interpreter.ToNumber(value)
+		switch a.Operator {
+		case "+=":
+			interpreter.SetVariable(a.Variable, current+newValue)
+		case "-=":
+			interpreter.SetVariable(a.Variable, current-newValue)
+		case "*=":
+			interpreter.SetVariable(a.Variable, current*newValue)
+		case "/=":
+			if newValue != 0 {
+				interpreter.SetVariable(a.Variable, current/newValue)
+			}
+		case "%=":
+			interpreter.SetVariable(a.Variable, int(current)%int(newValue))
+		}
+	}
+	return interpreter.GetVariable(a.Variable)
 }
 
 type Parser struct {
