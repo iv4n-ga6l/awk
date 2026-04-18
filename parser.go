@@ -1,171 +1,165 @@
 package main
 
-import (
-	"fmt"
-)
+import "fmt"
 
-type Expression interface {
-	Evaluate(interpreter *Interpreter) interface{}
-}
-
-type VariableExpression struct {
-	Name string
-}
-
-func (v *VariableExpression) Evaluate(interpreter *Interpreter) interface{} {
-	return interpreter.GetVariable(v.Name)
-}
-
-type LiteralExpression struct {
-	Value string
-}
-
-func (l *LiteralExpression) Evaluate(interpreter *Interpreter) interface{} {
-	return l.Value
-}
-
-type BinaryExpression struct {
-	Left     Expression
-	Operator string
-	Right    Expression
-}
-
-func (b *BinaryExpression) Evaluate(interpreter *Interpreter) interface{} {
-	left := interpreter.ToNumber(b.Left.Evaluate(interpreter))
-	right := interpreter.ToNumber(b.Right.Evaluate(interpreter))
-
-	switch b.Operator {
-	case "+":
-		return left + right
-	case "-":
-		return left - right
-	case "*":
-		return left * right
-	case "/":
-		if right == 0 {
-			return 0 // Avoid division by zero
-		}
-		return left / right
-	case "%":
-		return int(left) % int(right)
-	case "^":
-		result := 1.0
-		for i := 0; i < int(right); i++ {
-			result *= left
-		}
-		return result
-	default:
-		return nil
-	}
-}
-
-type AssignmentExpression struct {
-	Variable string
-	Operator string
-	Value    Expression
-}
-
-func (a *AssignmentExpression) Evaluate(interpreter *Interpreter) interface{} {
-	value := a.Value.Evaluate(interpreter)
-	if a.Operator == "=" {
-		interpreter.SetVariable(a.Variable, value)
-	} else {
-		current := interpreter.ToNumber(interpreter.GetVariable(a.Variable))
-		newValue := interpreter.ToNumber(value)
-		switch a.Operator {
-		case "+=":
-			interpreter.SetVariable(a.Variable, current+newValue)
-		case "-=":
-			interpreter.SetVariable(a.Variable, current-newValue)
-		case "*=":
-			interpreter.SetVariable(a.Variable, current*newValue)
-		case "/=":
-			if newValue != 0 {
-				interpreter.SetVariable(a.Variable, current/newValue)
-			}
-		case "%=":
-			interpreter.SetVariable(a.Variable, int(current)%int(newValue))
-		}
-	}
-	return interpreter.GetVariable(a.Variable)
-}
-
-type Parser struct {
-	lexer *Lexer
-	token Token
-}
-
-func NewParser(lexer *Lexer) *Parser {
-	return &Parser{lexer: lexer}
-}
-
-func (p *Parser) nextToken() {
-	p.token = p.lexer.NextToken()
-}
-
-func (p *Parser) Parse() (*Program, error) {
-	program := &Program{}
+func (p *Parser) parseIfStatement() (*IfStatement, error) {
+	ifStmt := &IfStatement{}
 	p.nextToken()
-
-	for p.token.Type != TOKEN_EOF {
-		if p.token.Type == TOKEN_BEGIN {
-			p.nextToken()
-			if p.token.Type != TOKEN_LBRACE {
-				return nil, fmt.Errorf("expected '{' after BEGIN, got %s", p.token.Value)
-			}
-			p.nextToken()
-			action, err := p.parseAction()
-			if err != nil {
-				return nil, err
-			}
-			program.BeginActions = append(program.BeginActions, action)
-			p.nextToken()
-		} else if p.token.Type == TOKEN_END {
-			p.nextToken()
-			if p.token.Type != TOKEN_LBRACE {
-				return nil, fmt.Errorf("expected '{' after END, got %s", p.token.Value)
-			}
-			p.nextToken()
-			action, err := p.parseAction()
-			if err != nil {
-				return nil, err
-			}
-			program.EndActions = append(program.EndActions, action)
-			p.nextToken()
-		} else {
-			pattern, err := p.parsePattern()
-			if err != nil {
-				return nil, err
-			}
-			var action *Action
-			if p.token.Type == TOKEN_LBRACE {
-				p.nextToken()
-				action, err = p.parseAction()
-				if err != nil {
-					return nil, err
-				}
-				p.nextToken()
-			}
-			program.Rules = append(program.Rules, Rule{Pattern: pattern, Action: action})
-		}
+	condition, err := p.parseExpression()
+	if err != nil {
+		return nil, err
 	}
-
-	return program, nil
-}
-
-func (p *Parser) parsePattern() (Pattern, error) {
-	// Placeholder: Implement pattern parsing (comparison, regex, etc.)
-	return nil, nil
-}
-
-func (p *Parser) parseAction() (*Action, error) {
-	action := &Action{Command: "print"}
-	for p.token.Type != TOKEN_RBRACE && p.token.Type != TOKEN_EOF {
-		action.Args = append(action.Args, p.token.Value)
+	ifStmt.Condition = condition
+	p.nextToken()
+	if p.token.Type != TOKEN_LBRACE {
+		return nil, fmt.Errorf("expected '{' after if condition")
+	}
+	p.nextToken()
+	trueBranch, err := p.parseActions()
+	if err != nil {
+		return nil, err
+	}
+	ifStmt.TrueBranch = trueBranch
+	p.nextToken()
+	if p.token.Type == TOKEN_ELSE {
+		p.nextToken()
+		if p.token.Type != TOKEN_LBRACE {
+			return nil, fmt.Errorf("expected '{' after else")
+		}
+		p.nextToken()
+		falseBranch, err := p.parseActions()
+		if err != nil {
+			return nil, err
+		}
+		ifStmt.FalseBranch = falseBranch
 		p.nextToken()
 	}
-	if p.token.Type != TOKEN_RBRACE {
-		return nil, fmt.Errorf("expected '}', got %s", p.token.Value)
+	return ifStmt, nil
+}
+
+func (p *Parser) parseWhileLoop() (*WhileLoop, error) {
+	whileLoop := &WhileLoop{}
+	p.nextToken()
+	condition, err := p.parseExpression()
+	if err != nil {
+		return nil, err
 	}
-	return action, nil
+	whileLoop.Condition = condition
+	p.nextToken()
+	if p.token.Type != TOKEN_LBRACE {
+		return nil, fmt.Errorf("expected '{' after while condition")
+	}
+	p.nextToken()
+	body, err := p.parseActions()
+	if err != nil {
+		return nil, err
+	}
+	whileLoop.Body = body
+	p.nextToken()
+	return whileLoop, nil
+}
+
+func (p *Parser) parseForLoop() (*ForLoop, error) {
+	forLoop := &ForLoop{}
+	p.nextToken()
+	init, err := p.parseAssignment()
+	if err != nil {
+		return nil, err
+	}
+	forLoop.Init = init
+	p.nextToken()
+	condition, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	forLoop.Condition = condition
+	p.nextToken()
+	post, err := p.parseAssignment()
+	if err != nil {
+		return nil, err
+	}
+	forLoop.Post = post
+	p.nextToken()
+	if p.token.Type != TOKEN_LBRACE {
+		return nil, fmt.Errorf("expected '{' after for loop header")
+	}
+	p.nextToken()
+	body, err := p.parseActions()
+	if err != nil {
+		return nil, err
+	}
+	forLoop.Body = body
+	p.nextToken()
+	return forLoop, nil
+}
+
+func (p *Parser) parseDoWhileLoop() (*DoWhileLoop, error) {
+	doWhileLoop := &DoWhileLoop{}
+	p.nextToken()
+	if p.token.Type != TOKEN_LBRACE {
+		return nil, fmt.Errorf("expected '{' after do")
+	}
+	p.nextToken()
+	body, err := p.parseActions()
+	if err != nil {
+		return nil, err
+	}
+	doWhileLoop.Body = body
+	p.nextToken()
+	if p.token.Type != TOKEN_WHILE {
+		return nil, fmt.Errorf("expected 'while' after do-while body")
+	}
+	p.nextToken()
+	condition, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	doWhileLoop.Condition = condition
+	p.nextToken()
+	return doWhileLoop, nil
+}
+
+func (p *Parser) parseCommand() (interface{}, error) {
+	switch p.token.Type {
+	case TOKEN_BREAK:
+		p.nextToken()
+		return &BreakCommand{}, nil
+	case TOKEN_CONTINUE:
+		p.nextToken()
+		return &ContinueCommand{}, nil
+	case TOKEN_NEXT:
+		p.nextToken()
+		return &NextCommand{}, nil
+	case TOKEN_EXIT:
+		p.nextToken()
+		var exitCode Expression
+		if p.token.Type != TOKEN_SEMICOLON {
+			exitCode, _ = p.parseExpression()
+		}
+		return &ExitCommand{ExitCode: exitCode}, nil
+	default:
+		return nil, fmt.Errorf("unexpected command token: %s", p.token.Type)
+	}
+}
+
+func (p *Parser) parseTernaryExpression(condition Expression) (*TernaryExpression, error) {
+	p.nextToken()
+	trueValue, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	p.nextToken()
+	if p.token.Type != TOKEN_COLON {
+		return nil, fmt.Errorf("expected ':' in ternary expression")
+	}
+	p.nextToken()
+	falseValue, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	return &TernaryExpression{
+		Condition:  condition,
+		TrueValue:  trueValue,
+		FalseValue: falseValue,
+	}, nil
 }
