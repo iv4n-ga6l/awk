@@ -6,26 +6,38 @@ import (
 )
 
 type Interpreter struct {
-	line   string
-	fields []string
+	line         string
+	fields       []string
+	recordNumber int
+	fieldSeparator string
 }
 
-func NewInterpreter(line string, fields []string) *Interpreter {
-	return &Interpreter{line: line, fields: fields}
+func NewInterpreter(line string, fields []string, recordNumber int, fieldSeparator string) *Interpreter {
+	return &Interpreter{
+		line:         line,
+		fields:       fields,
+		recordNumber: recordNumber,
+		fieldSeparator: fieldSeparator,
+	}
 }
 
 func (i *Interpreter) Execute(action *Action) {
 	if action.Command == "print" {
 		var output []string
 		for _, arg := range action.Args {
-			if arg == "$0" {
+			switch {
+			case arg == "$0":
 				output = append(output, i.line)
-			} else if strings.HasPrefix(arg, "$") {
+			case arg == "NR":
+				output = append(output, fmt.Sprintf("%d", i.recordNumber))
+			case arg == "NF":
+				output = append(output, fmt.Sprintf("%d", len(i.fields)))
+			case strings.HasPrefix(arg, "$"):
 				index := parseFieldIndex(arg[1:])
 				if index > 0 && index <= len(i.fields) {
 					output = append(output, i.fields[index-1])
 				}
-			} else {
+			default:
 				output = append(output, arg)
 			}
 		}
