@@ -1,8 +1,8 @@
 package main
 
 const (
-	TOKEN_IN     TokenType = "IN"
-	TOKEN_DELETE TokenType = "DELETE"
+	TOKEN_FUNCTION TokenType = "FUNCTION"
+	TOKEN_RETURN   TokenType = "RETURN"
 )
 
 func (l *Lexer) lexKeywordOrIdentifier() Token {
@@ -12,6 +12,10 @@ func (l *Lexer) lexKeywordOrIdentifier() Token {
 	}
 	value := l.input[start:l.pos]
 	switch value {
+	case "function":
+		return Token{Type: TOKEN_FUNCTION, Value: value}
+	case "return":
+		return Token{Type: TOKEN_RETURN, Value: value}
 	case "in":
 		return Token{Type: TOKEN_IN, Value: value}
 	case "delete":
@@ -40,12 +44,15 @@ func (l *Lexer) NextToken() Token {
 	case '}':
 		l.pos++
 		return Token{Type: TOKEN_RBRACE, Value: "}"}
-	case '[':
+	case '(':
 		l.pos++
-		return Token{Type: TOKEN_LBRACKET, Value: "["}
-	case ']':
+		return Token{Type: TOKEN_LPAREN, Value: "("}
+	case ')':
 		l.pos++
-		return Token{Type: TOKEN_RBRACKET, Value: "]"}
+		return Token{Type: TOKEN_RPAREN, Value: ")"}
+	case ',':
+		l.pos++
+		return Token{Type: TOKEN_COMMA, Value: ","}
 	default:
 		if isAlpha(ch) {
 			return l.lexKeywordOrIdentifier()
