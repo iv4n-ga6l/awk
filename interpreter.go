@@ -1,101 +1,59 @@
 package main
 
-import (
-	"fmt"
-	"strconv"
-	"strings"
-)
-
-type Interpreter struct {
-	line           string
-	fields         []string
-	recordNumber   int
-	FieldSeparator string
-	variables      map[string]interface{}
-}
-
-func NewInterpreter(fieldSeparator string) *Interpreter {
-	return &Interpreter{
-		FieldSeparator: fieldSeparator,
-		variables:      make(map[string]interface{}),
-	}
-}
-
-func (i *Interpreter) SetRecord(line string, fields []string, recordNumber int) {
-	i.line = line
-	i.fields = fields
-	i.recordNumber = recordNumber
-}
-
 func (i *Interpreter) Execute(action *Action) {
-	if action.Command == "print" {
-		var output []string
-		for _, arg := range action.Args {
-			switch {
-			case arg == "$0":
-				output = append(output, i.line)
-			case arg == "NR":
-				output = append(output, fmt.Sprintf("%d", i.recordNumber))
-			case arg == "NF":
-				output = append(output, fmt.Sprintf("%d", len(i.fields)))
-			case strings.HasPrefix(arg, "$"):
-				index := parseFieldIndex(arg[1:])
-				if index > 0 && index <= len(i.fields) {
-					output = append(output, i.fields[index-1])
-				}
-			default:
-				output = append(output, fmt.Sprintf("%v", i.GetVariable(arg)))
+	switch action.Command {
+	case "print":
+		// Existing print logic
+	case "if":
+		ifStmt := action.IfStatement
+		if i.ToNumber(ifStmt.Condition.Evaluate(i)) != 0 {
+			for _, act := range ifStmt.TrueBranch {
+				i.Execute(act)
+			}
+		} else {
+			for _, act := range ifStmt.FalseBranch {
+				i.Execute(act)
 			}
 		}
-		fmt.Println(strings.Join(output, " "))
-	}
-}
-
-func (i *Interpreter) EvaluatePattern(pattern Pattern) bool {
-	// Placeholder: Implement pattern evaluation logic
-	return true
-}
-
-func (i *Interpreter) ExecuteBegin(actions []*Action) {
-	for _, action := range actions {
-		i.Execute(action)
-	}
-}
-
-func (i *Interpreter) ExecuteEnd(actions []*Action) {
-	for _, action := range actions {
-		i.Execute(action)
-	}
-}
-
-func (i *Interpreter) GetVariable(name string) interface{} {
-	if value, exists := i.variables[name]; exists {
-		return value
-	}
-	return 0 // Default value for uninitialized variables
-}
-
-func (i *Interpreter) SetVariable(name string, value interface{}) {
-	i.variables[name] = value
-}
-
-func (i *Interpreter) ToNumber(value interface{}) float64 {
-	switch v := value.(type) {
-	case string:
-		if num, err := strconv.ParseFloat(v, 64); err == nil {
-			return num
+	case "while":
+		whileLoop := action.WhileLoop
+		for i.ToNumber(whileLoop.Condition.Evaluate(i)) != 0 {
+			for _, act := range whileLoop.Body {
+				i.Execute(act)
+			}
 		}
-		return 0
-	case float64:
-		return v
-	case int:
-		return float64(v)
-	default:
-		return 0
+	case "for":
+		forLoop := action.ForLoop
+		forLoop.Init.Evaluate(i)
+		for i.ToNumber(forLoop.Condition.Evaluate(i)) != 0 {
+			for _, act := range forLoop.Body {
+				i.Execute(act)
+			}
+			forLoop.Post.Evaluate(i)
+		}
+	case "do-while":
+		doWhileLoop := action.DoWhileLoop
+		for {
+			for _, act := range doWhileLoop.Body {
+				i.Execute(act)
+			}
+			if i.ToNumber(doWhileLoop.Condition.Evaluate(i)) == 0 {
+				break
+			}
+		}
+	case "break":
+		// Break logic
+	case "continue":
+		// Continue logic
+	case "next":
+		// Skip to next record
+	case "exit":
+		exitCommand := action.ExitCommand
+		if exitCommand.ExitCode != nil {
+			exitCode := i.ToNumber(exitCommand.ExitCode.Evaluate(i))
+			os.Exit(int(exitCode))
+		} else {
+			os.Exit(0)
+		}
 	}
-}
-
-func parseFieldIndex(field string) int {
-	index, _ := strconv.Atoi(field)
-	return index
 }
